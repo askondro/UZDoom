@@ -27,6 +27,7 @@ jobs:
       build_opts: ${{ matrix.config.build_opts }} ${{ matrix.config.build_opts_extra }}
       deps_cmdline: ${{ matrix.config.deps_cmdline }}
       extra_files: ${{ matrix.config.extra_files }}
+      msystem: ${{ matrix.config.msystem || 'MINGW64' }}
     strategy:
       fail-fast: false
       matrix:
@@ -93,6 +94,7 @@ jobs:
       deps_cmdline: ${{ matrix.config.deps_cmdline }}
       build_type: ${{ matrix.config.build_type }}
       extra_files: ${{ matrix.config.extra_files }}
+      msystem: ${{ matrix.config.msystem || 'MINGW64' }}
     strategy:
       fail-fast: false
       matrix:
@@ -121,6 +123,23 @@ jobs:
             extra_files: ""
             build_type: RelWithDebInfo
 
+          - name: Windows MinGW UCRT64
+            os: windows-latest
+            build_opts: -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+            build_opts_extra: -DFORCE_NO_LTO=true
+            msystem: UCRT64
+            deps_cmdline: |
+              pacman -S --noconfirm --needed
+                mingw-w64-ucrt-x86_64-openal
+                mingw-w64-ucrt-x86_64-libvpx
+                mingw-w64-ucrt-x86_64-cmake
+                mingw-w64-ucrt-x86_64-ninja
+                mingw-w64-ucrt-x86_64-bzip2
+                mingw-w64-ucrt-x86_64-clang
+                mingw-w64-ucrt-x86_64-gcc
+            extra_files: ""
+            build_type: RelWithDebInfo
+
   optional:
     needs: ci-success
     name: ${{ matrix.config.name }}
@@ -133,6 +152,7 @@ jobs:
       deps_cmdline: ${{ matrix.config.deps_cmdline }}
       build_type: ${{ matrix.config.build_type }}
       extra_files: ${{ matrix.config.extra_files }}
+      msystem: ${{ matrix.config.msystem || 'MINGW64' }}
     strategy:
       fail-fast: false
       matrix:
@@ -183,6 +203,7 @@ jobs:
       build_opts: ${{ matrix.config.build_opts }} ${{ matrix.config.build_opts_extra }}
       deps_cmdline: ${{ matrix.config.deps_cmdline }}
       extra_files: ${{ matrix.config.extra_files }}
+      msystem: ${{ matrix.config.msystem || 'MINGW64' }}
     strategy:
       fail-fast: false
       matrix:
@@ -200,6 +221,7 @@ jobs:
       build_opts: ${{ matrix.config.build_opts }} ${{ matrix.config.build_opts_extra }}
       deps_cmdline: ${{ matrix.config.deps_cmdline }}
       extra_files: ${{ matrix.config.extra_files }}
+      msystem: ${{ matrix.config.msystem || 'MINGW64' }}
     strategy:
       fail-fast: false
       matrix:

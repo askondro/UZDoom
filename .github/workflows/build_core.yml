@@ -22,6 +22,10 @@ on:
       build_type:
         required: true
         type: string
+      msystem:
+        required: false
+        type: string
+        default: 'MINGW64'
     secrets:
       MACOS_CERTIFICATE:
         required: false
@@ -52,7 +56,7 @@ jobs:
       if: runner.os == 'Windows' && contains(inputs.name, 'MinGW')
       uses: msys2/setup-msys2@v2
       with:
-        msystem: MINGW64
+        msystem: ${{ inputs.msystem }}
         update: true
 
     - name: Dependencies
@@ -136,8 +140,6 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       working-directory: build
-      env:
-        NAME: ${{ steps.package.outputs.name }}
       run: |
         if [[ -f oalsoft.zip ]]; then
           unzip -j oalsoft.zip openal-soft-1.23.1-bin/bin/Win64/soft_oal.dll -d package
@@ -158,6 +160,63 @@ jobs:
 
         cp uzdoom.* *.pk3 package
 
+    - name: Bundle MinGW Runtime
+      if: runner.os == 'Windows' && contains(inputs.name, 'MinGW')
+      shell: msys2 {0}
+      working-directory: build
+      run: |
+        set +e
+        pkg_dir="package"
+        prefix="/${MSYSTEM,,}"
+
+        echo "MSYSTEM=$MSYSTEM"
+        echo "prefix=$prefix"
+        echo "pwd=$(pwd)"
+        ls -la uzdoom.exe || echo "uzdoom.exe not in cwd"
+
+        # collect runtime DLLs via ldd
+        ldd uzdoom.exe | grep "$prefix/" | awk '{print $3}' | while read -r dll; do
+          echo "  bundling: $dll"
+          cp "$dll" "$pkg_dir/"
+        done
+
+        # openal is loaded at runtime, ldd won't catch it
+        oal="${prefix}/bin/soft_oal.dll"
+        if [[ ! -f "$oal" ]]; then
+          oal="${prefix}/bin/libopenal-1.dll"
+        fi
+        if [[ -f "$oal" ]]; then
+          echo "  bundling openal: $oal -> soft_oal.dll"
+          cp "$oal" "$pkg_dir/soft_oal.dll"
+        fi
+
+        # sndfile is also loaded at runtime
+        for name in libsndfile-1.dll sndfile.dll; do
+          snd="${prefix}/bin/$name"
+          if [[ -f "$snd" ]]; then
+            echo "  bundling sndfile: $snd -> sndfile.dll"
+            cp "$snd" "$pkg_dir/sndfile.dll"
+            ldd "$snd" | grep "$prefix/" | awk '{print $3}' | while read -r dll; do
+              base=$(basename "$dll")
+              if [[ ! -f "$pkg_dir/$base" ]]; then
+                echo "  bundling sndfile dep: $dll"
+                cp "$dll" "$pkg_dir/"
+              fi
+            done
+            break
+          fi
+        done
+
+        echo "Bundled DLLs:"
+        ls -1 "$pkg_dir"/*.dll || echo "No DLLs found"
+
+    - name: Archive Windows
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: build
+      env:
+        NAME: ${{ steps.package.outputs.name }}
+      run: |
         cd package
         7z a -sdel -r "${NAME}.zip" *
         cd ..
